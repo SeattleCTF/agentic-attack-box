@@ -349,3 +349,153 @@ SSH_EOF
     done
     echo "Credential sync complete."
 }
+
+cmd_aws_sync_skills() {
+    local profile=$(get_config_value "AWS_PROFILE" "default")
+    local region=$(get_config_value "AWS_REGION" "us-east-1")
+    
+    local instances_raw=$(get_active_instances)
+    if [ -z "$instances_raw" ]; then
+        echo "No active AWS instances found to sync skills."
+        return 0
+    fi
+    
+    local lines=()
+    while IFS= read -r line; do
+        if [ -n "$line" ]; then
+            lines+=("$line")
+        fi
+    done <<< "$instances_raw"
+    
+    echo "Found ${#lines[@]} instance(s) in region $region. Syncing agent skills via SSH..."
+    
+    for line in "${lines[@]}"; do
+        local inst_id=$(echo "$line" | awk '{print $1}')
+        local state=$(echo "$line" | awk '{print $2}')
+        local public_ip=$(echo "$line" | awk '{print $3}')
+        
+        if [ "$state" != "running" ]; then
+            echo "Skipping instance $inst_id because it is in state: $state"
+            continue
+        fi
+        
+        if [ "$public_ip" = "None" ] || [ -z "$public_ip" ] || [ "$public_ip" = "null" ]; then
+            echo "Skipping instance $inst_id because it does not have a public IP address."
+            continue
+        fi
+        
+        # Determine image and default user
+        local image_id=$(aws ec2 describe-instances \
+            --profile "$profile" \
+            --region "$region" \
+            --instance-ids "$inst_id" \
+            --query "Reservations[0].Instances[0].ImageId" \
+            --output text 2>/dev/null || echo "")
+            
+        local ami_name=$(aws ec2 describe-images --profile "$profile" --region "$region" --image-ids "$image_id" --query "Images[0].Name" --output text 2>/dev/null || echo "")
+        local ssh_user="admin"
+        if [[ "$ami_name" == *"kali"* ]]; then
+            ssh_user="kali"
+        fi
+        
+        echo "Syncing skills to $inst_id ($public_ip) as user '$ssh_user'..."
+        
+        local key_file="${SSH_KEYS_DIR}/aictf_key"
+        
+        # Ensure Security Group whitelists current IP for connection
+        local whitelisted=false
+        local sgs=$(aws ec2 describe-instances \
+            --profile "$profile" \
+            --region "$region" \
+            --instance-ids "$inst_id" \
+            --query "Reservations[0].Instances[0].SecurityGroups[].GroupId" \
+            --output text)
+            
+        local my_ip=$(get_my_ip)
+        for sg_id in $sgs; do
+            local cidrs=$(aws ec2 describe-security-groups --profile "$profile" --region "$region" --group-ids "$sg_id" --query "SecurityGroups[0].IpPermissions[?ToPort==\`22\`].IpRanges[].CidrIp" --output text 2>/dev/null || true)
+            if echo "$cidrs" | grep -q -E "(${my_ip}/32|0\.0\.0\.0/0)"; then
+                whitelisted=true
+                break
+            fi
+        done
+        
+        if [ "$whitelisted" = "false" ]; then
+            echo "Access not open. Auto-whitelisting your IP in security group..." >&2
+            cmd_aws_access "$inst_id"
+        fi
+        
+        # Sync all local skills from skills/ directory on host using inline transfer
+        # This allows users to easily add/edit skills locally and sync them via sync-skills
+        if [ -d "/home/remix/SeattleCTF/agentic-attack-box/skills" ]; then
+            for skill_path in /home/remix/SeattleCTF/agentic-attack-box/skills/*; do
+                if [ -d "$skill_path" ]; then
+                    local skill_name=$(basename "$skill_path")
+                    local skill_content=$(cat "$skill_path/SKILL.md")
+                    
+                    ssh -i "$key_file" -o StrictHostKeyChecking=no "${ssh_user}@${public_ip}" bash -s <<SSH_EOF
+set -euo pipefail
+USER_HOME=\$HOME
+mkdir -p "\${USER_HOME}/.agents/skills/${skill_name}"
+cat << 'SKILL_INNER_EOF' > "\${USER_HOME}/.agents/skills/${skill_name}/SKILL.md"
+$skill_content
+SKILL_INNER_EOF
+chown -R \$(whoami):\$(whoami) "\${USER_HOME}/.agents"
+SSH_EOF
+                fi
+            done
+        else
+            # Default fallback if skills/ folder is missing on host
+            ssh -i "$key_file" -o StrictHostKeyChecking=no "${ssh_user}@${public_ip}" bash -s <<'SSH_EOF'
+set -euo pipefail
+
+USER_HOME=$HOME
+mkdir -p "${USER_HOME}/.agents/skills/htb-web/"
+
+cat << 'SKILL_INNER_EOF' > "${USER_HOME}/.agents/skills/htb-web/SKILL.md"
+# Skill: htb-web (HackTheBox Web Challenge Assistant)
+
+## Description
+This skill is designed for enumerating, exploiting, and documenting web-based CTF challenges in HackTheBox and other security platforms. It guides the user conceptually through web vulnerabilities, executes required tool commands, and formats a clean, comprehensive penetration testing report/writeup of the challenge.
+
+## Workflow
+1. **Target Verification**: Check if a target IP address or hostname is provided in the prompt. If not, immediately stop and ask: "What is the target IP address?" Do not proceed until provided.
+2. **Enumeration Phase**: Suggest and execute (with user permission) these standard enumeration commands:
+   - `nmap -p 80,443 -sC -sV <target_ip>`
+   - `gobuster dir -u http://<target_ip> -w /usr/share/seclists/Discovery/Web-Content/common.txt`
+   - `ffuf -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://<target_ip>/FUZZ`
+3. **Exploitation Phase**: Conceptually explain any discovered vulnerability (SQLi, LFI, SSRF, XSS, etc.) to act as a mentor. Explain exactly why the exploit payload works before running it. Provide a short one-line description of what each step of the exploit is doing.
+
+## Writeup Template
+Upon successful exploitation or challenge completion, generate an educational writeup following this exact markdown template:
+
+# HackTheBox Web Challenge Writeup
+
+## 1. Executive Summary
+- **Challenge Name**: [Challenge Name]
+- **Difficulty**: [Easy/Medium/Hard]
+- **Target IP**: [Target IP]
+- **Summary**: Concise overview of the vulnerability and impact.
+
+## 2. Enumeration
+Describe the discovery steps (ports, endpoints found, gobuster outputs, etc.).
+
+## 3. Vulnerability Explanation
+Detail the discovered vulnerability conceptually. Explain the underlying flaw and why it exists.
+
+## 4. Exploitation
+Provide the step-by-step exploit payloads with a one-line description for why each is needed.
+
+## 5. Remediation
+Actionable advice on how developers should patch and secure this specific vulnerability.
+SKILL_INNER_EOF
+
+# Set proper ownership for current ssh user
+chown -R $(whoami):$(whoami) "${USER_HOME}/.agents"
+echo "Skills synced successfully."
+SSH_EOF
+        fi
+
+    done
+    echo "Skill sync complete."
+}

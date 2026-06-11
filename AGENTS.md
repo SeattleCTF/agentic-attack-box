@@ -71,7 +71,11 @@ Deletes the `bin/` directory.
 3. **LLM Credential Syncing**:
    - Subcommand `aictf aws sync-creds` triggers interactive configuration or dynamic resolution of LLM credentials (Gemini API keys or Bedrock IAM profiles) and automatically SSHs into all running EC2 instances in that region to safely write them to user `.bashrc` profiles and `/etc/environment`.
 
-4. **Error Handling**:
+4. **Agent Skill Injection**:
+   - Subcommand `aictf aws sync-skills` automatically provisions and mounts custom Agent Skills (specifically the `htb-web` module) into active running instances' `~/.config/crush/skills/` directories, setting proper ownership dynamically.
+   - Newly created instances automatically include this custom pentesting skill by default on launch.
+
+5. **Error Handling**:
    - Every file is executed under `set -euo pipefail` (defined in `header.sh`).
    - Use `local` variables in all functions to prevent namespace pollution.
    - For commands that can fail but should have fallback behavior, append `|| true` or handle the exit status cleanly.

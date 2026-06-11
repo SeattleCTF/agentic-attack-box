@@ -19,6 +19,7 @@ show_help() {
     echo "  aws destroy [id]         Terminate an instance permanently"
     echo "  aws access [id]          Authorize current IP for SSH"
     echo "  aws sync-creds           Sync LLM (Gemini/Bedrock) credentials to active instances"
+    echo "  aws sync-skills          Sync Crush agent skills (like htb-web) to active instances"
     echo ""
     echo "Planned Providers:"
     echo "  gcloud                   Google Cloud Platform (Not implemented yet)"
@@ -206,14 +207,74 @@ echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *
 apt-get update -y
 apt-get install -y gum crush || true
 USER_HOME="/home/${target_user}"
-mkdir -p "\${USER_HOME}/.ssh"
-echo "$(cat ${SSH_KEYS_DIR}/aictf_key.pub)" >> "\${USER_HOME}/.ssh/authorized_keys"
-chown -R ${target_user}:${target_user} "\${USER_HOME}/.ssh"
-chmod 700 "\${USER_HOME}/.ssh"
-chmod 600 "\${USER_HOME}/.ssh/authorized_keys"
-echo "$llm_env_setup" >> "\${USER_HOME}/.bashrc"
+mkdir -p "${USER_HOME}/.ssh"
+echo "$(cat ${SSH_KEYS_DIR}/aictf_key.pub)" >> "${USER_HOME}/.ssh/authorized_keys"
+chown -R ${target_user}:${target_user} "${USER_HOME}/.ssh"
+chmod 700 "${USER_HOME}/.ssh"
+chmod 600 "${USER_HOME}/.ssh/authorized_keys"
+
+# Create Crush Agent Skill directory and write all local skills
+mkdir -p "${USER_HOME}/.agents/skills/"
+
+# Inject all local skills from skills/ directory
+# Use a dynamic directory reader if skills exist, otherwise fallback
+if [ -d "/home/remix/SeattleCTF/agentic-attack-box/skills" ]; then
+    for skill_path in /home/remix/SeattleCTF/agentic-attack-box/skills/*; do
+        if [ -d "$skill_path" ]; then
+            skill_name=$(basename "$skill_path")
+            mkdir -p "${USER_HOME}/.agents/skills/${skill_name}"
+            cat << 'SKILL_OUTER_EOF' > "${USER_HOME}/.agents/skills/${skill_name}/SKILL.md"
+$(cat "$skill_path/SKILL.md")
+SKILL_OUTER_EOF
+        fi
+    done
+else
+    # Fallback default htb-web skill if skills dir is missing
+    mkdir -p "${USER_HOME}/.agents/skills/htb-web/"
+    cat << 'SKILL_EOF' > "${USER_HOME}/.agents/skills/htb-web/SKILL.md"
+# Skill: htb-web (HackTheBox Web Challenge Assistant)
+
+## Description
+This skill is designed for enumerating, exploiting, and documenting web-based CTF challenges in HackTheBox and other security platforms. It guides the user conceptually through web vulnerabilities, executes required tool commands, and formats a clean, comprehensive penetration testing report/writeup of the challenge.
+
+## Workflow
+1. **Target Verification**: Check if a target IP address or hostname is provided in the prompt. If not, immediately stop and ask: "What is the target IP address?" Do not proceed until provided.
+2. **Enumeration Phase**: Suggest and execute (with user permission) these standard enumeration commands:
+   - `nmap -p 80,443 -sC -sV <target_ip>`
+   - `gobuster dir -u http://<target_ip> -w /usr/share/seclists/Discovery/Web-Content/common.txt`
+   - `ffuf -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://<target_ip>/FUZZ`
+3. **Exploitation Phase**: Conceptually explain any discovered vulnerability (SQLi, LFI, SSRF, XSS, etc.) to act as a mentor. Explain exactly why the exploit payload works before running it. Provide a short one-line description of what each step of the exploit is doing.
+
+## Writeup Template
+Upon successful exploitation or challenge completion, generate an educational writeup following this exact markdown template:
+
+# HackTheBox Web Challenge Writeup
+
+## 1. Executive Summary
+- **Challenge Name**: [Challenge Name]
+- **Difficulty**: [Easy/Medium/Hard]
+- **Target IP**: [Target IP]
+- **Summary**: Concise overview of the vulnerability and impact.
+
+## 2. Enumeration
+Describe the discovery steps (ports, endpoints found, gobuster outputs, etc.).
+
+## 3. Vulnerability Explanation
+Detail the discovered vulnerability conceptually. Explain the underlying flaw and why it exists.
+
+## 4. Exploitation
+Provide the step-by-step exploit payloads with a one-line description for why each is needed.
+
+## 5. Remediation
+Actionable advice on how developers should patch and secure this specific vulnerability.
+SKILL_EOF
+fi
+
+chown -R ${target_user}:${target_user} "${USER_HOME}/.agents"
+
+echo "$llm_env_setup" >> "${USER_HOME}/.bashrc"
 echo "$llm_env_setup" >> "/home/${target_user}/.profile"
-chown ${target_user}:${target_user} "\${USER_HOME}/.bashrc" "\${USER_HOME}/.profile"
+chown ${target_user}:${target_user} "${USER_HOME}/.bashrc" "${USER_HOME}/.profile"
 while read -r line; do
     if [ -n "\$line" ]; then
         echo "\$line" >> /etc/environment
@@ -260,6 +321,9 @@ EOF
                     ;;
                 sync-creds)
                     cmd_aws_sync_creds
+                    ;;
+                sync-skills)
+                    cmd_aws_sync_skills
                     ;;
                 *)
                     echo "Unknown AWS subcommand: $sub" >&2
