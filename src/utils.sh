@@ -317,6 +317,11 @@ register_resource() {
     deregister_resource "$r_type" "$r_id" "$r_provider" "$r_region"
 
     echo "${r_type} | ${r_id} | ${r_provider} | ${r_region} | ${r_meta}" >> "$RESOURCES_FILE"
+    
+    # Write to local usage.log with timestamp for session uptime and tracking
+    local epoch
+    epoch=$(date +%s)
+    echo "${epoch} | REGISTER | ${r_type} | ${r_id} | ${r_provider} | ${r_region} | ${r_meta}" >> "$USAGE_LOG_FILE"
 }
 
 deregister_resource() {
@@ -331,6 +336,9 @@ deregister_resource() {
         grep -v -E "^[[:space:]]*${r_type}[[:space:]]*\|[[:space:]]*${r_id}[[:space:]]*\|[[:space:]]*${r_provider}[[:space:]]*\|[[:space:]]*${r_region}" "$RESOURCES_FILE" > "$tmp" || true
         mv "$tmp" "$RESOURCES_FILE"
     fi
+    local epoch
+    epoch=$(date +%s)
+    echo "${epoch} | DEREGISTER | ${r_type} | ${r_id} | ${r_provider} | ${r_region}" >> "$USAGE_LOG_FILE"
 }
 
 ensure_network_env() {

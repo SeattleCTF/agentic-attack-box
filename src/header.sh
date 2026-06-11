@@ -11,6 +11,8 @@ RESOURCES_FILE="${AICTF_DIR}/resources"
 
 # Ensure directories exist
 mkdir -p "$AICTF_DIR" "$SSH_KEYS_DIR" "$LLM_KEYS_DIR"
+USAGE_LOG_FILE="${AICTF_DIR}/usage.log"
+touch "$USAGE_LOG_FILE"
 
 # Color Codes
 C_HEADING="\033[1;38;2;107;80;255m"     # Bold rgb(107, 80, 255) - USAGE, COMMANDS, FLAGS

@@ -21,6 +21,7 @@ show_help() {
     printf "  ${C_FLAG}%-24s${C_RESET} ${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws access [id]" "Authorize current IP for SSH"
     printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws sync-creds" "Sync LLM (Gemini/Bedrock) credentials to active instances"
     printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws sync-skills" "Sync Crush agent skills (like htb-web) to active instances"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws usage" "View resource consumption and cost aggregated summaries"
     echo ""
     echo -e "${C_HEADING}PLANNED PROVIDERS${C_RESET}"
     printf "  ${C_MUTED}%-24s${C_RESET} ${C_MUTED}%s${C_RESET}\n" "gcloud" "Google Cloud Platform (Not implemented yet)"
@@ -66,7 +67,7 @@ main() {
                 fi
                 echo ""
                 echo -e "${C_HEADING}Available Subcommands:${C_RESET}"
-                echo -e "  ${C_FLAG}create, shell, start, stop, destroy, access, sync-creds, sync-skills${C_RESET}"
+                echo -e "  ${C_FLAG}create, shell, start, stop, destroy, access, sync-creds, sync-skills, usage${C_RESET}"
                 return 0
             fi
             shift
@@ -325,6 +326,9 @@ EOF
                     ;;
                 sync-skills)
                     cmd_aws_sync_skills
+                    ;;
+                usage)
+                    cmd_aws_usage "$@"
                     ;;
                 *)
                     echo "Unknown AWS subcommand: $sub" >&2
