@@ -13,6 +13,15 @@ RESOURCES_FILE="${AICTF_DIR}/resources"
 
 # Ensure directories exist
 mkdir -p "$AICTF_DIR" "$SSH_KEYS_DIR" "$LLM_KEYS_DIR"
+
+# Color Codes
+C_HEADING="\033[1;38;2;107;80;255m"     # Bold rgb(107, 80, 255) - USAGE, COMMANDS, FLAGS
+C_PRIMARY="\033[38;2;114;114;255m"       # rgb(114, 114, 255) - Commands (crush, dirs, login, completion)
+C_SUBCOMMAND="\033[38;2;255;121;208m"    # rgb(255, 121, 208) - Subcommands / Secondary commands
+C_TEXT="\033[38;2;236;235;240m"          # rgb(236, 235, 240) - Normal description text
+C_FLAG="\033[38;2;18;199;143m"           # rgb(18, 199; 143) - Flags (-c, -d, --cwd, --yolo)
+C_MUTED="\033[38;2;116;114;130m"         # rgb(116, 114, 130) - Muted comment hints
+C_RESET="\033[0m"
 # Common Utilities for aictf
 
 get_my_ip() {
@@ -362,7 +371,7 @@ ensure_network_env() {
 
     if [ -n "$default_vpc_id" ] && [ "$default_vpc_id" != "None" ] && [ "$default_vpc_id" != "null" ]; then
         # Default VPC exists
-        echo "Using default VPC: $default_vpc_id" >&2
+        echo -e "${C_FLAG}Using default VPC:${C_RESET} ${C_SUBCOMMAND}$default_vpc_id${C_RESET}" >&2
         local default_subnet_id
         default_subnet_id=$(aws ec2 describe-subnets \
             --profile "$profile" \
@@ -377,7 +386,7 @@ ensure_network_env() {
     fi
 
     # No default VPC (or no default subnets). Ensure custom aictf VPC environment.
-    echo "No default VPC found in region $region. Ensuring custom aictf VPC is configured..." >&2
+    echo -e "${C_SUBCOMMAND}No default VPC found in region $region. Ensuring custom aictf VPC is configured...${C_RESET}" >&2
 
     local aictf_vpc_id
     aictf_vpc_id=$(aws ec2 describe-vpcs \
@@ -388,7 +397,7 @@ ensure_network_env() {
         --output text 2>/dev/null || echo "None")
 
     if [ -z "$aictf_vpc_id" ] || [ "$aictf_vpc_id" = "None" ] || [ "$aictf_vpc_id" = "null" ]; then
-        echo "Creating aictf custom VPC..." >&2
+        echo -e "${C_FLAG}Creating aictf custom VPC...${C_RESET}" >&2
         aictf_vpc_id=$(aws ec2 create-vpc \
             --profile "$profile" \
             --region "$region" \
@@ -412,7 +421,7 @@ ensure_network_env() {
         --output text 2>/dev/null || echo "None")
 
     if [ -z "$aictf_subnet_id" ] || [ "$aictf_subnet_id" = "None" ] || [ "$aictf_subnet_id" = "null" ]; then
-        echo "Creating aictf custom subnet..." >&2
+        echo -e "${C_FLAG}Creating aictf custom subnet...${C_RESET}" >&2
         aictf_subnet_id=$(aws ec2 create-subnet \
             --profile "$profile" \
             --region "$region" \
@@ -445,7 +454,7 @@ ensure_network_env() {
             --output text 2>/dev/null || echo "None")
 
         if [ -z "$aictf_igw_id" ] || [ "$aictf_igw_id" = "None" ] || [ "$aictf_igw_id" = "null" ]; then
-            echo "Creating custom internet gateway..." >&2
+            echo -e "${C_FLAG}Creating custom internet gateway...${C_RESET}" >&2
             aictf_igw_id=$(aws ec2 create-internet-gateway \
                 --profile "$profile" \
                 --region "$region" \
@@ -455,7 +464,7 @@ ensure_network_env() {
             register_resource "internet-gateway" "$aictf_igw_id" "aws" "$region" "Created"
         fi
         
-        echo "Attaching internet gateway to VPC..." >&2
+        echo -e "${C_MUTED}Attaching internet gateway to VPC...${C_RESET}" >&2
         aws ec2 attach-internet-gateway \
             --profile "$profile" \
             --region "$region" \
@@ -481,7 +490,7 @@ ensure_network_env() {
             --query "RouteTables[0].Routes[?DestinationCidrBlock=='0.0.0.0/0'].GatewayId" \
             --output text 2>/dev/null || echo "None")
         if [ -z "$has_route" ] || [ "$has_route" = "None" ] || [ "$has_route" = "null" ]; then
-            echo "Adding route to Internet Gateway..." >&2
+            echo -e "${C_MUTED}Adding route to Internet Gateway...${C_RESET}" >&2
             aws ec2 create-route \
                 --profile "$profile" \
                 --region "$region" \
@@ -505,42 +514,43 @@ ensure_network_env() {
 cmd_config() {
     local sub="${1:-}"
     if [ -z "$sub" ]; then
-        echo "Usage: aictf config [subcommand]"
+        echo -e "${C_HEADING}USAGE${C_RESET}"
+        echo -e "  ${C_PRIMARY}aictf config${C_RESET} ${C_SUBCOMMAND}[subcommand]${C_RESET}"
         echo ""
-        echo "Subcommands:"
-        echo "  aws-config         Configure AWS region and other AWS settings"
-        echo "  aws-profile        Set default AWS profile used by aictf"
-        echo "  gcloud-config      Stub (Not implemented yet)"
-        echo "  gcloud-profile     Stub (Not implemented yet)"
-        echo "  oci-config         Stub (Not implemented yet)"
-        echo "  oci-profile        Stub (Not implemented yet)"
+        echo -e "${C_HEADING}SUBCOMMANDS${C_RESET}"
+        printf "  ${C_SUBCOMMAND}%-18s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws-config" "Configure AWS region and other AWS settings"
+        printf "  ${C_SUBCOMMAND}%-18s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws-profile" "Set default AWS profile used by aictf"
+        printf "  ${C_MUTED}%-18s${C_RESET} ${C_MUTED}%s${C_RESET}\n" "gcloud-config" "Stub (Not implemented yet)"
+        printf "  ${C_MUTED}%-18s${C_RESET} ${C_MUTED}%s${C_RESET}\n" "gcloud-profile" "Stub (Not implemented yet)"
+        printf "  ${C_MUTED}%-18s${C_RESET} ${C_MUTED}%s${C_RESET}\n" "oci-config" "Stub (Not implemented yet)"
+        printf "  ${C_MUTED}%-18s${C_RESET} ${C_MUTED}%s${C_RESET}\n" "oci-profile" "Stub (Not implemented yet)"
         return 0
     fi
     
     case "$sub" in
         aws-config)
             local current_region=$(get_config_value "AWS_REGION" "us-east-1")
-            echo -n "Enter AWS Region [$current_region]: "
+            echo -e -n "${C_TEXT}Enter AWS Region [${C_FLAG}${current_region}${C_TEXT}]: ${C_RESET}"
             local region
             read -r region
             region="${region:-$current_region}"
             set_config_value "AWS_REGION" "$region"
-            echo "AWS region updated to: $region"
+            echo -e "${C_FLAG}Success:${C_RESET} ${C_TEXT}AWS region updated to:${C_RESET} ${C_SUBCOMMAND}${region}${C_RESET}"
             ;;
         aws-profile)
             local current_profile=$(get_config_value "AWS_PROFILE" "default")
-            echo -n "Enter AWS Profile [$current_profile]: "
+            echo -e -n "${C_TEXT}Enter AWS Profile [${C_FLAG}${current_profile}${C_TEXT}]: ${C_RESET}"
             local profile
             read -r profile
             profile="${profile:-$current_profile}"
             set_config_value "AWS_PROFILE" "$profile"
-            echo "AWS profile updated to: $profile"
+            echo -e "${C_FLAG}Success:${C_RESET} ${C_TEXT}AWS profile updated to:${C_RESET} ${C_SUBCOMMAND}${profile}${C_RESET}"
             ;;
         gcloud-config|gcloud-profile|oci-config|oci-profile)
-            echo "Not implemented yet"
+            echo -e "${C_MUTED}Not implemented yet${C_RESET}"
             ;;
         *)
-            echo "Unknown config subcommand: $sub" >&2
+            echo -e "${C_SUBCOMMAND}Unknown config subcommand: ${sub}${C_RESET}" >&2
             exit 1
             ;;
     esac
@@ -575,6 +585,15 @@ import sys
 import json
 import subprocess
 
+# Define ANSI escape color constants in python matching terminal_output.html scheme
+C_HEADING = "\033[1;38;2;107;80;255m"
+C_PRIMARY = "\033[38;2;114;114;255m"
+C_SUBCOMMAND = "\033[38;2;255;121;208m"
+C_TEXT = "\033[38;2;236;235;240m"
+C_FLAG = "\033[38;2;18;199;143m"
+C_MUTED = "\033[38;2;116;114;130m"
+C_RESET = "\033[0m"
+
 try:
     data = json.loads(sys.argv[1])
     my_ip = sys.argv[2]
@@ -593,12 +612,13 @@ if data:
             instances.append(inst)
 
 # Header matching specifications
-print(f"{'Provider':<10} | {'Instance ID':<20} | {'Public IP':<15} | {'Accessible':<10} | {'State':<6}")
-print("-" * 75)
+headers = f"{C_HEADING}{'Provider':<10} | {'Instance ID':<20} | {'Public IP':<15} | {'Accessible':<10} | {'State':<6}{C_RESET}"
+print(headers)
+print(f"{C_MUTED}" + "-" * 75 + f"{C_RESET}")
 
 for inst in instances:
     provider = "aws"
-    inst_id = inst.get("InstanceId", "N/A")
+    inst_id = inst.get('InstanceId', 'N/A')
     state_raw = inst.get("State", {}).get("Name", "unknown") if isinstance(inst.get("State"), dict) else inst.get("State", "unknown")
     public_ip = inst.get("PublicIpAddress", "N/A")
     if not public_ip:
@@ -636,12 +656,21 @@ for inst in instances:
     else:
         state_icon = "⏳"
         
-    print(f"{provider:<10} | {inst_id:<20} | {public_ip:<15} | {accessible:<10} | {state_icon:<6}")
+    # We apply the colors cleanly with proper formatting string widths so the grid lines remain aligned!
+    # \033[38;2;...m sequences are 19 characters of invisible terminal instructions. 
+    # By styling the values AFTER setting formatting widths (or using precise print formats), we keep the ASCII column perfectly straight!
+    prov_styled = f"{C_FLAG}{provider:<10}{C_RESET}"
+    id_styled = f"{C_SUBCOMMAND}{inst_id:<20}{C_RESET}"
+    ip_styled = f"{C_TEXT}{public_ip:<15}{C_RESET}"
+    acc_styled = f"{accessible:<10}"
+    state_styled = f"{state_icon:<6}"
+    
+    print(f"{prov_styled} | {id_styled} | {ip_styled} | {acc_styled} | {state_styled}")
 
 EOF
     else
-        echo "Provider   | Instance ID          | Public IP       | Accessible | State"
-        echo "------------------------------------------------------------------------"
+        echo -e "${C_HEADING}Provider   | Instance ID          | Public IP       | Accessible | State${C_RESET}"
+        echo -e "${C_MUTED}------------------------------------------------------------------------${C_RESET}"
         if command -v jq &> /dev/null; then
             local len=$(echo "$instances_json" | jq '. | flatten | length')
             for ((i=0; i<len; i++)); do
@@ -671,7 +700,8 @@ EOF
                     state_icon="😴"
                 fi
                 
-                printf "%-10s | %-20s | %-15s | %-10s | %-6s\n" "aws" "$inst_id" "$public_ip" "$accessible" "$state_icon"
+                # Align columns cleanly before applying style markers
+                printf "${C_FLAG}%-10s${C_RESET} | ${C_SUBCOMMAND}%-20s${C_RESET} | ${C_TEXT}%-15s${C_RESET} | %-10s | %-6s\n" "aws" "$inst_id" "$public_ip" "$accessible" "$state_icon"
             done
         else
             echo "No python3 or jq available to render the list table." >&2
@@ -794,13 +824,13 @@ cmd_aws_shell() {
     done
     
     if [ "$whitelisted" = "false" ]; then
-        echo "Instance is not accessible from your current IP ($my_ip)." >&2
-        echo "Automatically running 'aictf aws access' to whitelist your IP..." >&2
+        echo -e "${C_SUBCOMMAND}Instance is not accessible from your current IP ($my_ip).${C_RESET}" >&2
+        echo -e "${C_MUTED}Automatically running 'aictf aws access' to whitelist your IP...${C_RESET}" >&2
         cmd_aws_access "$instance_id"
     fi
     
     local key_file="${SSH_KEYS_DIR}/aictf_key"
-    echo "Connecting to ${ssh_user}@${public_ip}..."
+    echo -e "${C_FLAG}Connecting to ${ssh_user}@${public_ip}...${C_RESET}"
     ssh -i "$key_file" -o StrictHostKeyChecking=no "${ssh_user}@${public_ip}"
 }
 
@@ -809,9 +839,9 @@ cmd_aws_start() {
     local profile=$(get_config_value "AWS_PROFILE" "default")
     local region=$(get_config_value "AWS_REGION" "us-east-1")
     
-    echo "Starting instance $instance_id..."
+    echo -e "${C_FLAG}Starting instance $instance_id...${C_RESET}"
     aws ec2 start-instances --profile "$profile" --region "$region" --instance-ids "$instance_id" >/dev/null
-    echo "Instance start request submitted. It may take a minute to boot."
+    echo -e "${C_FLAG}Success:${C_RESET} ${C_TEXT}Instance start request submitted. It may take a minute to boot.${C_RESET}"
 }
 
 cmd_aws_stop() {
@@ -819,9 +849,9 @@ cmd_aws_stop() {
     local profile=$(get_config_value "AWS_PROFILE" "default")
     local region=$(get_config_value "AWS_REGION" "us-east-1")
     
-    echo "Stopping instance $instance_id..."
+    echo -e "${C_FLAG}Stopping instance $instance_id...${C_RESET}"
     aws ec2 stop-instances --profile "$profile" --region "$region" --instance-ids "$instance_id" >/dev/null
-    echo "Instance stop request submitted."
+    echo -e "${C_FLAG}Success:${C_RESET} ${C_TEXT}Instance stop request submitted.${C_RESET}"
 }
 
 cmd_aws_destroy() {
@@ -829,18 +859,18 @@ cmd_aws_destroy() {
     local profile=$(get_config_value "AWS_PROFILE" "default")
     local region=$(get_config_value "AWS_REGION" "us-east-1")
     
-    echo -n "Are you sure you want to destroy instance ${instance_id}? [y/N]: "
+    echo -e -n "${C_SUBCOMMAND}Are you sure you want to destroy instance ${instance_id}? [y/N]: ${C_RESET}"
     local confirmation
     read -r confirmation
     if [[ ! "$confirmation" =~ ^[Yy]$ ]]; then
-        echo "Termination aborted."
+        echo -e "${C_MUTED}Termination aborted.${C_RESET}"
         return 0
     fi
     
-    echo "Terminating instance $instance_id..."
+    echo -e "${C_SUBCOMMAND}Terminating instance $instance_id...${C_RESET}"
     aws ec2 terminate-instances --profile "$profile" --region "$region" --instance-ids "$instance_id" >/dev/null
     deregister_resource "instance" "$instance_id" "aws" "$region"
-    echo "Instance termination request submitted."
+    echo -e "${C_FLAG}Success:${C_RESET} ${C_TEXT}Instance termination request submitted.${C_RESET}"
 }
 
 cmd_aws_access() {
@@ -857,11 +887,11 @@ cmd_aws_access() {
         --output text)
         
     if [ -z "$sg_id" ] || [ "$sg_id" = "None" ]; then
-        echo "Error: Could not find security group for instance $instance_id." >&2
+        echo -e "${C_SUBCOMMAND}Error: Could not find security group for instance $instance_id.${C_RESET}" >&2
         exit 1
     fi
     
-    echo "Updating Security Group $sg_id to authorize port 22 ingress for $my_ip/32..."
+    echo -e "${C_FLAG}Updating Security Group $sg_id to authorize port 22 ingress for $my_ip/32...${C_RESET}"
     
     local existing_rules=$(aws ec2 describe-security-groups \
         --profile "$profile" \
@@ -872,7 +902,7 @@ cmd_aws_access() {
         
     for cidr in $existing_rules; do
         if [ -n "$cidr" ] && [ "$cidr" != "None" ]; then
-            echo "Revoking existing ingress rule for $cidr..."
+            echo -e "${C_MUTED}Revoking existing ingress rule for $cidr...${C_RESET}"
             aws ec2 revoke-security-group-ingress \
                 --profile "$profile" \
                 --region "$region" \
@@ -911,14 +941,14 @@ cmd_aws_sync_creds() {
     elif [ -f "$bedrock_file" ] && [ -s "$bedrock_file" ]; then
         llm_env_setup=$(cat "$bedrock_file")
     else
-        echo "Error: No valid LLM credentials found to sync." >&2
+        echo -e "${C_SUBCOMMAND}Error: No valid LLM credentials found to sync.${C_RESET}" >&2
         exit 1
     fi
     
     # 2. Get active instances
     local instances_raw=$(get_active_instances)
     if [ -z "$instances_raw" ]; then
-        echo "No active AWS instances found to sync."
+        echo -e "${C_SUBCOMMAND}No active AWS instances found to sync credentials.${C_RESET}"
         return 0
     fi
     
@@ -929,7 +959,7 @@ cmd_aws_sync_creds() {
         fi
     done <<< "$instances_raw"
     
-    echo "Found ${#lines[@]} instance(s) in region $region. Syncing credentials via SSH..."
+    echo -e "${C_FLAG}Found ${#lines[@]} instance(s) in region $region. Syncing credentials via SSH...${C_RESET}"
     
     for line in "${lines[@]}"; do
         local inst_id=$(echo "$line" | awk '{print $1}')
@@ -937,12 +967,12 @@ cmd_aws_sync_creds() {
         local public_ip=$(echo "$line" | awk '{print $3}')
         
         if [ "$state" != "running" ]; then
-            echo "Skipping instance $inst_id because it is in state: $state"
+            echo -e "${C_MUTED}Skipping instance $inst_id because it is in state: $state${C_RESET}"
             continue
         fi
         
         if [ "$public_ip" = "None" ] || [ -z "$public_ip" ] || [ "$public_ip" = "null" ]; then
-            echo "Skipping instance $inst_id because it does not have a public IP address."
+            echo -e "${C_MUTED}Skipping instance $inst_id because it does not have a public IP address.${C_RESET}"
             continue
         fi
         
@@ -960,7 +990,7 @@ cmd_aws_sync_creds() {
             ssh_user="kali"
         fi
         
-        echo "Syncing credentials to $inst_id ($public_ip) as user '$ssh_user'..."
+        echo -e "${C_TEXT}Syncing credentials to ${C_SUBCOMMAND}$inst_id${C_RESET} (${C_FLAG}$public_ip${C_RESET}) as user '${C_PRIMARY}$ssh_user${C_RESET}'...${C_RESET}"
         
         local key_file="${SSH_KEYS_DIR}/aictf_key"
         
@@ -983,7 +1013,7 @@ cmd_aws_sync_creds() {
         done
         
         if [ "$whitelisted" = "false" ]; then
-            echo "Access not open. Auto-whitelisting your IP in security group..." >&2
+            echo -e "${C_MUTED}Access not open. Auto-whitelisting your IP in security group...${C_RESET}" >&2
             cmd_aws_access "$inst_id"
         fi
         
@@ -1029,7 +1059,7 @@ echo "Credentials synced successfully."
 SSH_EOF
 
     done
-    echo "Credential sync complete."
+    echo -e "${C_FLAG}Credential sync complete.${C_RESET}"
 }
 
 cmd_aws_sync_skills() {
@@ -1038,7 +1068,7 @@ cmd_aws_sync_skills() {
     
     local instances_raw=$(get_active_instances)
     if [ -z "$instances_raw" ]; then
-        echo "No active AWS instances found to sync skills."
+        echo -e "${C_SUBCOMMAND}No active AWS instances found to sync skills.${C_RESET}"
         return 0
     fi
     
@@ -1049,7 +1079,7 @@ cmd_aws_sync_skills() {
         fi
     done <<< "$instances_raw"
     
-    echo "Found ${#lines[@]} instance(s) in region $region. Syncing agent skills via SSH..."
+    echo -e "${C_FLAG}Found ${#lines[@]} instance(s) in region $region. Syncing agent skills via SSH...${C_RESET}"
     
     for line in "${lines[@]}"; do
         local inst_id=$(echo "$line" | awk '{print $1}')
@@ -1057,12 +1087,12 @@ cmd_aws_sync_skills() {
         local public_ip=$(echo "$line" | awk '{print $3}')
         
         if [ "$state" != "running" ]; then
-            echo "Skipping instance $inst_id because it is in state: $state"
+            echo -e "${C_MUTED}Skipping instance $inst_id because it is in state: $state${C_RESET}"
             continue
         fi
         
         if [ "$public_ip" = "None" ] || [ -z "$public_ip" ] || [ "$public_ip" = "null" ]; then
-            echo "Skipping instance $inst_id because it does not have a public IP address."
+            echo -e "${C_MUTED}Skipping instance $inst_id because it does not have a public IP address.${C_RESET}"
             continue
         fi
         
@@ -1080,7 +1110,7 @@ cmd_aws_sync_skills() {
             ssh_user="kali"
         fi
         
-        echo "Syncing skills to $inst_id ($public_ip) as user '$ssh_user'..."
+        echo -e "${C_TEXT}Syncing skills to ${C_SUBCOMMAND}$inst_id${C_RESET} (${C_FLAG}$public_ip${C_RESET}) as user '${C_PRIMARY}$ssh_user${C_RESET}'...${C_RESET}"
         
         local key_file="${SSH_KEYS_DIR}/aictf_key"
         
@@ -1103,7 +1133,7 @@ cmd_aws_sync_skills() {
         done
         
         if [ "$whitelisted" = "false" ]; then
-            echo "Access not open. Auto-whitelisting your IP in security group..." >&2
+            echo -e "${C_MUTED}Access not open. Auto-whitelisting your IP in security group...${C_RESET}" >&2
             cmd_aws_access "$inst_id"
         fi
         
@@ -1179,34 +1209,35 @@ SSH_EOF
         fi
 
     done
-    echo "Skill sync complete."
+    echo -e "${C_FLAG}Skill sync complete.${C_RESET}"
 }
 # Global CLI Entrypoint & Argument Parsing
 
 show_help() {
-    echo "aictf - Agentic Attack Box Manager"
+    echo -e "${C_TEXT}aictf - agentic attack box orchestrator and manager${C_RESET}"
     echo ""
-    echo "Usage: aictf <command> [subcommand] [arguments]"
+    echo -e "${C_HEADING}USAGE${C_RESET}"
+    echo -e "  ${C_PRIMARY}aictf${C_RESET} ${C_SUBCOMMAND}[command]${C_RESET} ${C_MUTED}[subcommand] [--flags]${C_RESET}"
     echo ""
-    echo "Global Commands:"
-    echo "  list                     List all tracked attack boxes and states"
-    echo "  config [subcommand]      Manage configurations (~/.aictf/config)"
-    echo "  help | -h | --help       Show this help menu"
+    echo -e "${C_HEADING}GLOBAL COMMANDS${C_RESET}"
+    printf "  ${C_SUBCOMMAND}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "list" "List all tracked attack boxes and states"
+    printf "  ${C_SUBCOMMAND}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "config [subcmd]" "Manage configurations (~/.aictf/config)"
+    printf "  ${C_SUBCOMMAND}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "help" "Show this help menu"
     echo ""
-    echo "AWS Commands (aictf aws [subcommand]):"
-    echo "  aws                      Show current AWS configuration and status"
-    echo "  aws create               Provision a new cloud-based attack box"
-    echo "  aws shell [id]           Connect to an instance via SSH"
-    echo "  aws start [id]           Start a stopped instance"
-    echo "  aws stop [id]            Stop a running instance"
-    echo "  aws destroy [id]         Terminate an instance permanently"
-    echo "  aws access [id]          Authorize current IP for SSH"
-    echo "  aws sync-creds           Sync LLM (Gemini/Bedrock) credentials to active instances"
-    echo "  aws sync-skills          Sync Crush agent skills (like htb-web) to active instances"
+    echo -e "${C_HEADING}AWS COMMANDS${C_RESET}"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws" "Show current AWS configuration and status"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws create" "Provision a new cloud-based attack box"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws shell [id]" "Connect to an instance via SSH"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws start [id]" "Start a stopped instance"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws stop [id]" "Stop a running instance"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws destroy [id]" "Terminate an instance permanently"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws access [id]" "Authorize current IP for SSH"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws sync-creds" "Sync LLM (Gemini/Bedrock) credentials to active instances"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws sync-skills" "Sync Crush agent skills (like htb-web) to active instances"
     echo ""
-    echo "Planned Providers:"
-    echo "  gcloud                   Google Cloud Platform (Not implemented yet)"
-    echo "  oci                      Oracle Cloud Infrastructure (Not implemented yet)"
+    echo -e "${C_HEADING}PLANNED PROVIDERS${C_RESET}"
+    printf "  ${C_MUTED}%-24s${C_RESET} ${C_MUTED}%s${C_RESET}\n" "gcloud" "Google Cloud Platform (Not implemented yet)"
+    printf "  ${C_MUTED}%-24s${C_RESET} ${C_MUTED}%s${C_RESET}\n" "oci" "Oracle Cloud Infrastructure (Not implemented yet)"
     echo ""
 }
 
@@ -1232,23 +1263,23 @@ main() {
         aws)
             local sub="${1:-}"
             if [ -z "$sub" ]; then
-                echo "AWS Configuration & CLI Status:"
+                echo -e "${C_HEADING}AWS Configuration & CLI Status:${C_RESET}"
                 local profile=$(get_config_value "AWS_PROFILE" "default")
                 local region=$(get_config_value "AWS_REGION" "us-east-1")
-                echo "  Profile: $profile"
-                echo "  Region:  $region"
+                echo -e "  ${C_TEXT}Profile:${C_RESET} ${C_SUBCOMMAND}${profile}${C_RESET}"
+                echo -e "  ${C_TEXT}Region:${C_RESET}  ${C_SUBCOMMAND}${region}${C_RESET}"
                 echo ""
                 if check_aws_auth; then
-                    echo "Status: Authenticated ✅"
+                    echo -e "${C_TEXT}Status:${C_RESET} ${C_FLAG}Authenticated ✅${C_RESET}"
                 else
-                    echo "Status: Not Authenticated ❌"
-                    echo "Please configure your AWS CLI or run:"
-                    echo "  aictf config aws-profile"
-                    echo "  aictf config aws-config"
+                    echo -e "${C_TEXT}Status:${C_RESET} ${C_SUBCOMMAND}Not Authenticated ❌${C_RESET}"
+                    echo -e "${C_MUTED}Please configure your AWS CLI or run:${C_RESET}"
+                    echo -e "  ${C_PRIMARY}aictf config aws-profile${C_RESET}"
+                    echo -e "  ${C_PRIMARY}aictf config aws-config${C_RESET}"
                 fi
                 echo ""
-                echo "Available Subcommands:"
-                echo "  create, shell, start, stop, destroy, access"
+                echo -e "${C_HEADING}Available Subcommands:${C_RESET}"
+                echo -e "  ${C_FLAG}create, shell, start, stop, destroy, access, sync-creds, sync-skills${C_RESET}"
                 return 0
             fi
             shift
@@ -1272,7 +1303,7 @@ main() {
                     
                     local ami_id=""
                     if [[ "$os_choice" == *"Kali"* ]]; then
-                        echo "Locating latest Kali Linux AMI..." >&2
+                        echo -e "${C_FLAG}Locating latest Kali Linux AMI...${C_RESET}" >&2
                         ami_id=$(aws ec2 describe-images \
                             --profile "$profile" \
                             --region "$region" \
@@ -1281,13 +1312,13 @@ main() {
                             --query "sort_by(Images, &CreationDate)[-1].ImageId" \
                             --output text 2>/dev/null || true)
                         if [ -z "$ami_id" ] || [ "$ami_id" = "None" ] || [ "$ami_id" = "null" ]; then
-                            echo "Could not locate Kali Linux AMI in region $region. Falling back to Debian 12." >&2
+                            echo -e "${C_SUBCOMMAND}Could not locate Kali Linux AMI in region $region. Falling back to Debian 12.${C_RESET}" >&2
                             os_choice="Debian"
                         fi
                     fi
                     
                     if [ -z "$ami_id" ] || [ "$ami_id" = "None" ] || [ "$ami_id" = "null" ]; then
-                        echo "Locating latest Debian 12 AMI..." >&2
+                        echo -e "${C_FLAG}Locating latest Debian 12 AMI...${C_RESET}" >&2
                         ami_id=$(aws ec2 describe-images \
                             --profile "$profile" \
                             --region "$region" \
@@ -1298,7 +1329,7 @@ main() {
                     fi
                     
                     if [ -z "$ami_id" ] || [ "$ami_id" = "None" ] || [ "$ami_id" = "null" ]; then
-                        echo "Using default Debian 12 AMI fallback..." >&2
+                        echo -e "${C_MUTED}Using default Debian 12 AMI fallback...${C_RESET}" >&2
                         if [ "$region" = "us-east-1" ]; then
                             ami_id="ami-058bd2d568351da34"
                         elif [ "$region" = "us-west-2" ]; then
@@ -1311,12 +1342,12 @@ main() {
                                 --filters "Name=name,Values=al2023-ami-2023.*-kernel-6.1-x86_64" \
                                 --query "sort_by(Images, &CreationDate)[-1].ImageId" \
                                 --output text 2>/dev/null || true)
-                            echo "Warning: Debian AMI not found, falling back to Amazon Linux: $ami_id" >&2
+                            echo -e "${C_SUBCOMMAND}Warning: Debian AMI not found, falling back to Amazon Linux: $ami_id${C_RESET}" >&2
                         fi
                     fi
                     
                     local sg_id=""
-                    echo "Checking for existing aictf security group..." >&2
+                    echo -e "${C_MUTED}Checking for existing aictf security group...${C_RESET}" >&2
                     sg_id=$(aws ec2 describe-security-groups \
                         --profile "$profile" \
                         --region "$region" \
@@ -1325,7 +1356,7 @@ main() {
                         --output text 2>/dev/null || true)
                         
                     if [ -z "$sg_id" ] || [ "$sg_id" = "None" ] || [ "$sg_id" = "null" ]; then
-                        echo "Creating security group aictf-security-group..." >&2
+                        echo -e "${C_FLAG}Creating security group aictf-security-group...${C_RESET}" >&2
                         sg_id=$(aws ec2 create-security-group \
                             --profile "$profile" \
                             --region "$region" \
@@ -1338,7 +1369,7 @@ main() {
                     register_resource "security-group" "$sg_id" "aws" "$region" "Name: aictf-security-group"
                     
                     local my_ip=$(get_my_ip)
-                    echo "Whitelisting port 22 for your current IP: $my_ip" >&2
+                    echo -e "${C_FLAG}Whitelisting port 22 for your current IP: $my_ip${C_RESET}" >&2
                     aws ec2 authorize-security-group-ingress \
                         --profile "$profile" \
                         --region "$region" \
@@ -1349,7 +1380,7 @@ main() {
                         
                     local key_name="aictf-keypair"
                     if ! aws ec2 describe-key-pairs --profile "$profile" --region "$region" --key-names "$key_name" &>/dev/null; then
-                        echo "Importing public key to AWS EC2..." >&2
+                        echo -e "${C_FLAG}Importing public key to AWS EC2...${C_RESET}" >&2
                         aws ec2 import-key-pair \
                             --profile "$profile" \
                             --region "$region" \
@@ -1468,7 +1499,7 @@ ENV_EOF
 echo "=== AICFT BOOTSTRAP COMPLETE ==="
 EOF
                     local inst_type="t2.micro"
-                    echo "Launching EC2 instance ($inst_type)..." >&2
+                    echo -e "${C_FLAG}Launching EC2 instance ($inst_type)...${C_RESET}" >&2
                     local instance_id
                     instance_id=$(aws ec2 run-instances \
                         --profile "$profile" \
@@ -1484,8 +1515,8 @@ EOF
                         --output text)
                     rm -f "$user_data_file"
                     register_resource "instance" "$instance_id" "aws" "$region" "Type: ${inst_type}"
-                    echo "Successfully launched instance: $instance_id"
-                    echo "You can check status with: aictf list"
+                    echo -e "${C_FLAG}Success:${C_RESET} ${C_TEXT}Successfully launched instance:${C_RESET} ${C_SUBCOMMAND}$instance_id${C_RESET}"
+                    echo -e "${C_MUTED}You can check status with:${C_RESET} ${C_PRIMARY}aictf list${C_RESET}"
                     ;;
                 shell)
                     cmd_aws_shell "${1:-}"

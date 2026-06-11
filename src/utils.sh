@@ -347,7 +347,7 @@ ensure_network_env() {
 
     if [ -n "$default_vpc_id" ] && [ "$default_vpc_id" != "None" ] && [ "$default_vpc_id" != "null" ]; then
         # Default VPC exists
-        echo "Using default VPC: $default_vpc_id" >&2
+        echo -e "${C_FLAG}Using default VPC:${C_RESET} ${C_SUBCOMMAND}$default_vpc_id${C_RESET}" >&2
         local default_subnet_id
         default_subnet_id=$(aws ec2 describe-subnets \
             --profile "$profile" \
@@ -362,7 +362,7 @@ ensure_network_env() {
     fi
 
     # No default VPC (or no default subnets). Ensure custom aictf VPC environment.
-    echo "No default VPC found in region $region. Ensuring custom aictf VPC is configured..." >&2
+    echo -e "${C_SUBCOMMAND}No default VPC found in region $region. Ensuring custom aictf VPC is configured...${C_RESET}" >&2
 
     local aictf_vpc_id
     aictf_vpc_id=$(aws ec2 describe-vpcs \
@@ -373,7 +373,7 @@ ensure_network_env() {
         --output text 2>/dev/null || echo "None")
 
     if [ -z "$aictf_vpc_id" ] || [ "$aictf_vpc_id" = "None" ] || [ "$aictf_vpc_id" = "null" ]; then
-        echo "Creating aictf custom VPC..." >&2
+        echo -e "${C_FLAG}Creating aictf custom VPC...${C_RESET}" >&2
         aictf_vpc_id=$(aws ec2 create-vpc \
             --profile "$profile" \
             --region "$region" \
@@ -397,7 +397,7 @@ ensure_network_env() {
         --output text 2>/dev/null || echo "None")
 
     if [ -z "$aictf_subnet_id" ] || [ "$aictf_subnet_id" = "None" ] || [ "$aictf_subnet_id" = "null" ]; then
-        echo "Creating aictf custom subnet..." >&2
+        echo -e "${C_FLAG}Creating aictf custom subnet...${C_RESET}" >&2
         aictf_subnet_id=$(aws ec2 create-subnet \
             --profile "$profile" \
             --region "$region" \
@@ -430,7 +430,7 @@ ensure_network_env() {
             --output text 2>/dev/null || echo "None")
 
         if [ -z "$aictf_igw_id" ] || [ "$aictf_igw_id" = "None" ] || [ "$aictf_igw_id" = "null" ]; then
-            echo "Creating custom internet gateway..." >&2
+            echo -e "${C_FLAG}Creating custom internet gateway...${C_RESET}" >&2
             aictf_igw_id=$(aws ec2 create-internet-gateway \
                 --profile "$profile" \
                 --region "$region" \
@@ -440,7 +440,7 @@ ensure_network_env() {
             register_resource "internet-gateway" "$aictf_igw_id" "aws" "$region" "Created"
         fi
         
-        echo "Attaching internet gateway to VPC..." >&2
+        echo -e "${C_MUTED}Attaching internet gateway to VPC...${C_RESET}" >&2
         aws ec2 attach-internet-gateway \
             --profile "$profile" \
             --region "$region" \
@@ -466,7 +466,7 @@ ensure_network_env() {
             --query "RouteTables[0].Routes[?DestinationCidrBlock=='0.0.0.0/0'].GatewayId" \
             --output text 2>/dev/null || echo "None")
         if [ -z "$has_route" ] || [ "$has_route" = "None" ] || [ "$has_route" = "null" ]; then
-            echo "Adding route to Internet Gateway..." >&2
+            echo -e "${C_MUTED}Adding route to Internet Gateway...${C_RESET}" >&2
             aws ec2 create-route \
                 --profile "$profile" \
                 --region "$region" \

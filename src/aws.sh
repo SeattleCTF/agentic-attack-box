@@ -112,13 +112,13 @@ cmd_aws_shell() {
     done
     
     if [ "$whitelisted" = "false" ]; then
-        echo "Instance is not accessible from your current IP ($my_ip)." >&2
-        echo "Automatically running 'aictf aws access' to whitelist your IP..." >&2
+        echo -e "${C_SUBCOMMAND}Instance is not accessible from your current IP ($my_ip).${C_RESET}" >&2
+        echo -e "${C_MUTED}Automatically running 'aictf aws access' to whitelist your IP...${C_RESET}" >&2
         cmd_aws_access "$instance_id"
     fi
     
     local key_file="${SSH_KEYS_DIR}/aictf_key"
-    echo "Connecting to ${ssh_user}@${public_ip}..."
+    echo -e "${C_FLAG}Connecting to ${ssh_user}@${public_ip}...${C_RESET}"
     ssh -i "$key_file" -o StrictHostKeyChecking=no "${ssh_user}@${public_ip}"
 }
 
@@ -127,9 +127,9 @@ cmd_aws_start() {
     local profile=$(get_config_value "AWS_PROFILE" "default")
     local region=$(get_config_value "AWS_REGION" "us-east-1")
     
-    echo "Starting instance $instance_id..."
+    echo -e "${C_FLAG}Starting instance $instance_id...${C_RESET}"
     aws ec2 start-instances --profile "$profile" --region "$region" --instance-ids "$instance_id" >/dev/null
-    echo "Instance start request submitted. It may take a minute to boot."
+    echo -e "${C_FLAG}Success:${C_RESET} ${C_TEXT}Instance start request submitted. It may take a minute to boot.${C_RESET}"
 }
 
 cmd_aws_stop() {
@@ -137,9 +137,9 @@ cmd_aws_stop() {
     local profile=$(get_config_value "AWS_PROFILE" "default")
     local region=$(get_config_value "AWS_REGION" "us-east-1")
     
-    echo "Stopping instance $instance_id..."
+    echo -e "${C_FLAG}Stopping instance $instance_id...${C_RESET}"
     aws ec2 stop-instances --profile "$profile" --region "$region" --instance-ids "$instance_id" >/dev/null
-    echo "Instance stop request submitted."
+    echo -e "${C_FLAG}Success:${C_RESET} ${C_TEXT}Instance stop request submitted.${C_RESET}"
 }
 
 cmd_aws_destroy() {
@@ -147,18 +147,18 @@ cmd_aws_destroy() {
     local profile=$(get_config_value "AWS_PROFILE" "default")
     local region=$(get_config_value "AWS_REGION" "us-east-1")
     
-    echo -n "Are you sure you want to destroy instance ${instance_id}? [y/N]: "
+    echo -e -n "${C_SUBCOMMAND}Are you sure you want to destroy instance ${instance_id}? [y/N]: ${C_RESET}"
     local confirmation
     read -r confirmation
     if [[ ! "$confirmation" =~ ^[Yy]$ ]]; then
-        echo "Termination aborted."
+        echo -e "${C_MUTED}Termination aborted.${C_RESET}"
         return 0
     fi
     
-    echo "Terminating instance $instance_id..."
+    echo -e "${C_SUBCOMMAND}Terminating instance $instance_id...${C_RESET}"
     aws ec2 terminate-instances --profile "$profile" --region "$region" --instance-ids "$instance_id" >/dev/null
     deregister_resource "instance" "$instance_id" "aws" "$region"
-    echo "Instance termination request submitted."
+    echo -e "${C_FLAG}Success:${C_RESET} ${C_TEXT}Instance termination request submitted.${C_RESET}"
 }
 
 cmd_aws_access() {
@@ -175,11 +175,11 @@ cmd_aws_access() {
         --output text)
         
     if [ -z "$sg_id" ] || [ "$sg_id" = "None" ]; then
-        echo "Error: Could not find security group for instance $instance_id." >&2
+        echo -e "${C_SUBCOMMAND}Error: Could not find security group for instance $instance_id.${C_RESET}" >&2
         exit 1
     fi
     
-    echo "Updating Security Group $sg_id to authorize port 22 ingress for $my_ip/32..."
+    echo -e "${C_FLAG}Updating Security Group $sg_id to authorize port 22 ingress for $my_ip/32...${C_RESET}"
     
     local existing_rules=$(aws ec2 describe-security-groups \
         --profile "$profile" \
@@ -190,7 +190,7 @@ cmd_aws_access() {
         
     for cidr in $existing_rules; do
         if [ -n "$cidr" ] && [ "$cidr" != "None" ]; then
-            echo "Revoking existing ingress rule for $cidr..."
+            echo -e "${C_MUTED}Revoking existing ingress rule for $cidr...${C_RESET}"
             aws ec2 revoke-security-group-ingress \
                 --profile "$profile" \
                 --region "$region" \
@@ -229,14 +229,14 @@ cmd_aws_sync_creds() {
     elif [ -f "$bedrock_file" ] && [ -s "$bedrock_file" ]; then
         llm_env_setup=$(cat "$bedrock_file")
     else
-        echo "Error: No valid LLM credentials found to sync." >&2
+        echo -e "${C_SUBCOMMAND}Error: No valid LLM credentials found to sync.${C_RESET}" >&2
         exit 1
     fi
     
     # 2. Get active instances
     local instances_raw=$(get_active_instances)
     if [ -z "$instances_raw" ]; then
-        echo "No active AWS instances found to sync."
+        echo -e "${C_SUBCOMMAND}No active AWS instances found to sync credentials.${C_RESET}"
         return 0
     fi
     
@@ -247,7 +247,7 @@ cmd_aws_sync_creds() {
         fi
     done <<< "$instances_raw"
     
-    echo "Found ${#lines[@]} instance(s) in region $region. Syncing credentials via SSH..."
+    echo -e "${C_FLAG}Found ${#lines[@]} instance(s) in region $region. Syncing credentials via SSH...${C_RESET}"
     
     for line in "${lines[@]}"; do
         local inst_id=$(echo "$line" | awk '{print $1}')
@@ -255,12 +255,12 @@ cmd_aws_sync_creds() {
         local public_ip=$(echo "$line" | awk '{print $3}')
         
         if [ "$state" != "running" ]; then
-            echo "Skipping instance $inst_id because it is in state: $state"
+            echo -e "${C_MUTED}Skipping instance $inst_id because it is in state: $state${C_RESET}"
             continue
         fi
         
         if [ "$public_ip" = "None" ] || [ -z "$public_ip" ] || [ "$public_ip" = "null" ]; then
-            echo "Skipping instance $inst_id because it does not have a public IP address."
+            echo -e "${C_MUTED}Skipping instance $inst_id because it does not have a public IP address.${C_RESET}"
             continue
         fi
         
@@ -278,7 +278,7 @@ cmd_aws_sync_creds() {
             ssh_user="kali"
         fi
         
-        echo "Syncing credentials to $inst_id ($public_ip) as user '$ssh_user'..."
+        echo -e "${C_TEXT}Syncing credentials to ${C_SUBCOMMAND}$inst_id${C_RESET} (${C_FLAG}$public_ip${C_RESET}) as user '${C_PRIMARY}$ssh_user${C_RESET}'...${C_RESET}"
         
         local key_file="${SSH_KEYS_DIR}/aictf_key"
         
@@ -301,7 +301,7 @@ cmd_aws_sync_creds() {
         done
         
         if [ "$whitelisted" = "false" ]; then
-            echo "Access not open. Auto-whitelisting your IP in security group..." >&2
+            echo -e "${C_MUTED}Access not open. Auto-whitelisting your IP in security group...${C_RESET}" >&2
             cmd_aws_access "$inst_id"
         fi
         
@@ -347,7 +347,7 @@ echo "Credentials synced successfully."
 SSH_EOF
 
     done
-    echo "Credential sync complete."
+    echo -e "${C_FLAG}Credential sync complete.${C_RESET}"
 }
 
 cmd_aws_sync_skills() {
@@ -356,7 +356,7 @@ cmd_aws_sync_skills() {
     
     local instances_raw=$(get_active_instances)
     if [ -z "$instances_raw" ]; then
-        echo "No active AWS instances found to sync skills."
+        echo -e "${C_SUBCOMMAND}No active AWS instances found to sync skills.${C_RESET}"
         return 0
     fi
     
@@ -367,7 +367,7 @@ cmd_aws_sync_skills() {
         fi
     done <<< "$instances_raw"
     
-    echo "Found ${#lines[@]} instance(s) in region $region. Syncing agent skills via SSH..."
+    echo -e "${C_FLAG}Found ${#lines[@]} instance(s) in region $region. Syncing agent skills via SSH...${C_RESET}"
     
     for line in "${lines[@]}"; do
         local inst_id=$(echo "$line" | awk '{print $1}')
@@ -375,12 +375,12 @@ cmd_aws_sync_skills() {
         local public_ip=$(echo "$line" | awk '{print $3}')
         
         if [ "$state" != "running" ]; then
-            echo "Skipping instance $inst_id because it is in state: $state"
+            echo -e "${C_MUTED}Skipping instance $inst_id because it is in state: $state${C_RESET}"
             continue
         fi
         
         if [ "$public_ip" = "None" ] || [ -z "$public_ip" ] || [ "$public_ip" = "null" ]; then
-            echo "Skipping instance $inst_id because it does not have a public IP address."
+            echo -e "${C_MUTED}Skipping instance $inst_id because it does not have a public IP address.${C_RESET}"
             continue
         fi
         
@@ -398,7 +398,7 @@ cmd_aws_sync_skills() {
             ssh_user="kali"
         fi
         
-        echo "Syncing skills to $inst_id ($public_ip) as user '$ssh_user'..."
+        echo -e "${C_TEXT}Syncing skills to ${C_SUBCOMMAND}$inst_id${C_RESET} (${C_FLAG}$public_ip${C_RESET}) as user '${C_PRIMARY}$ssh_user${C_RESET}'...${C_RESET}"
         
         local key_file="${SSH_KEYS_DIR}/aictf_key"
         
@@ -421,7 +421,7 @@ cmd_aws_sync_skills() {
         done
         
         if [ "$whitelisted" = "false" ]; then
-            echo "Access not open. Auto-whitelisting your IP in security group..." >&2
+            echo -e "${C_MUTED}Access not open. Auto-whitelisting your IP in security group...${C_RESET}" >&2
             cmd_aws_access "$inst_id"
         fi
         
@@ -497,5 +497,5 @@ SSH_EOF
         fi
 
     done
-    echo "Skill sync complete."
+    echo -e "${C_FLAG}Skill sync complete.${C_RESET}"
 }

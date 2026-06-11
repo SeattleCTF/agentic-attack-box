@@ -1,29 +1,30 @@
 # Global CLI Entrypoint & Argument Parsing
 
 show_help() {
-    echo "aictf - Agentic Attack Box Manager"
+    echo -e "${C_TEXT}aictf - agentic attack box orchestrator${C_RESET}"
     echo ""
-    echo "Usage: aictf <command> [subcommand] [arguments]"
+    echo -e "${C_HEADING}USAGE${C_RESET}"
+    echo -e "  ${C_PRIMARY}aictf${C_RESET} ${C_SUBCOMMAND}[command]${C_RESET} ${C_MUTED}[subcommand] [--flags]${C_RESET}"
     echo ""
-    echo "Global Commands:"
-    echo "  list                     List all tracked attack boxes and states"
-    echo "  config [subcommand]      Manage configurations (~/.aictf/config)"
-    echo "  help | -h | --help       Show this help menu"
+    echo -e "${C_HEADING}GLOBAL COMMANDS${C_RESET}"
+    printf "  ${C_SUBCOMMAND}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "list" "List all tracked attack boxes and states"
+    printf "  ${C_SUBCOMMAND}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "config [subcmd]" "Manage configurations (~/.aictf/config)"
+    printf "  ${C_SUBCOMMAND}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "help" "Show this help menu"
     echo ""
-    echo "AWS Commands (aictf aws [subcommand]):"
-    echo "  aws                      Show current AWS configuration and status"
-    echo "  aws create               Provision a new cloud-based attack box"
-    echo "  aws shell [id]           Connect to an instance via SSH"
-    echo "  aws start [id]           Start a stopped instance"
-    echo "  aws stop [id]            Stop a running instance"
-    echo "  aws destroy [id]         Terminate an instance permanently"
-    echo "  aws access [id]          Authorize current IP for SSH"
-    echo "  aws sync-creds           Sync LLM (Gemini/Bedrock) credentials to active instances"
-    echo "  aws sync-skills          Sync Crush agent skills (like htb-web) to active instances"
+    echo -e "${C_HEADING}AWS COMMANDS${C_RESET}"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws" "Show current AWS configuration and status"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws create" "Provision a new cloud-based attack box"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws shell [id]" "Connect to an instance via SSH"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws start [id]" "Start a stopped instance"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws stop [id]" "Stop a running instance"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws destroy [id]" "Terminate an instance permanently"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws access [id]" "Authorize current IP for SSH"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws sync-creds" "Sync LLM (Gemini/Bedrock) credentials to active instances"
+    printf "  ${C_FLAG}%-24s${C_RESET} ${C_TEXT}%s${C_RESET}\n" "aws sync-skills" "Sync Crush agent skills (like htb-web) to active instances"
     echo ""
-    echo "Planned Providers:"
-    echo "  gcloud                   Google Cloud Platform (Not implemented yet)"
-    echo "  oci                      Oracle Cloud Infrastructure (Not implemented yet)"
+    echo -e "${C_HEADING}PLANNED PROVIDERS${C_RESET}"
+    printf "  ${C_MUTED}%-24s${C_RESET} ${C_MUTED}%s${C_RESET}\n" "gcloud" "Google Cloud Platform (Not implemented yet)"
+    printf "  ${C_MUTED}%-24s${C_RESET} ${C_MUTED}%s${C_RESET}\n" "oci" "Oracle Cloud Infrastructure (Not implemented yet)"
     echo ""
 }
 
@@ -49,23 +50,23 @@ main() {
         aws)
             local sub="${1:-}"
             if [ -z "$sub" ]; then
-                echo "AWS Configuration & CLI Status:"
+                echo -e "${C_HEADING}AWS Configuration & CLI Status:${C_RESET}"
                 local profile=$(get_config_value "AWS_PROFILE" "default")
                 local region=$(get_config_value "AWS_REGION" "us-east-1")
-                echo "  Profile: $profile"
-                echo "  Region:  $region"
+                echo -e "  ${C_TEXT}Profile:${C_RESET} ${C_SUBCOMMAND}${profile}${C_RESET}"
+                echo -e "  ${C_TEXT}Region:${C_RESET}  ${C_SUBCOMMAND}${region}${C_RESET}"
                 echo ""
                 if check_aws_auth; then
-                    echo "Status: Authenticated ✅"
+                    echo -e "${C_TEXT}Status:${C_RESET} ${C_FLAG}Authenticated ✅${C_RESET}"
                 else
-                    echo "Status: Not Authenticated ❌"
-                    echo "Please configure your AWS CLI or run:"
-                    echo "  aictf config aws-profile"
-                    echo "  aictf config aws-config"
+                    echo -e "${C_TEXT}Status:${C_RESET} ${C_SUBCOMMAND}Not Authenticated ❌${C_RESET}"
+                    echo -e "${C_MUTED}Please configure your AWS CLI or run:${C_RESET}"
+                    echo -e "  ${C_PRIMARY}aictf config aws-profile${C_RESET}"
+                    echo -e "  ${C_PRIMARY}aictf config aws-config${C_RESET}"
                 fi
                 echo ""
-                echo "Available Subcommands:"
-                echo "  create, shell, start, stop, destroy, access"
+                echo -e "${C_HEADING}Available Subcommands:${C_RESET}"
+                echo -e "  ${C_FLAG}create, shell, start, stop, destroy, access, sync-creds, sync-skills${C_RESET}"
                 return 0
             fi
             shift
@@ -89,7 +90,7 @@ main() {
                     
                     local ami_id=""
                     if [[ "$os_choice" == *"Kali"* ]]; then
-                        echo "Locating latest Kali Linux AMI..." >&2
+                        echo -e "${C_FLAG}Locating latest Kali Linux AMI...${C_RESET}" >&2
                         ami_id=$(aws ec2 describe-images \
                             --profile "$profile" \
                             --region "$region" \
@@ -98,13 +99,13 @@ main() {
                             --query "sort_by(Images, &CreationDate)[-1].ImageId" \
                             --output text 2>/dev/null || true)
                         if [ -z "$ami_id" ] || [ "$ami_id" = "None" ] || [ "$ami_id" = "null" ]; then
-                            echo "Could not locate Kali Linux AMI in region $region. Falling back to Debian 12." >&2
+                            echo -e "${C_SUBCOMMAND}Could not locate Kali Linux AMI in region $region. Falling back to Debian 12.${C_RESET}" >&2
                             os_choice="Debian"
                         fi
                     fi
                     
                     if [ -z "$ami_id" ] || [ "$ami_id" = "None" ] || [ "$ami_id" = "null" ]; then
-                        echo "Locating latest Debian 12 AMI..." >&2
+                        echo -e "${C_FLAG}Locating latest Debian 12 AMI...${C_RESET}" >&2
                         ami_id=$(aws ec2 describe-images \
                             --profile "$profile" \
                             --region "$region" \
@@ -115,7 +116,7 @@ main() {
                     fi
                     
                     if [ -z "$ami_id" ] || [ "$ami_id" = "None" ] || [ "$ami_id" = "null" ]; then
-                        echo "Using default Debian 12 AMI fallback..." >&2
+                        echo -e "${C_MUTED}Using default Debian 12 AMI fallback...${C_RESET}" >&2
                         if [ "$region" = "us-east-1" ]; then
                             ami_id="ami-058bd2d568351da34"
                         elif [ "$region" = "us-west-2" ]; then
@@ -128,12 +129,12 @@ main() {
                                 --filters "Name=name,Values=al2023-ami-2023.*-kernel-6.1-x86_64" \
                                 --query "sort_by(Images, &CreationDate)[-1].ImageId" \
                                 --output text 2>/dev/null || true)
-                            echo "Warning: Debian AMI not found, falling back to Amazon Linux: $ami_id" >&2
+                            echo -e "${C_SUBCOMMAND}Warning: Debian AMI not found, falling back to Amazon Linux: $ami_id${C_RESET}" >&2
                         fi
                     fi
                     
                     local sg_id=""
-                    echo "Checking for existing aictf security group..." >&2
+                    echo -e "${C_MUTED}Checking for existing aictf security group...${C_RESET}" >&2
                     sg_id=$(aws ec2 describe-security-groups \
                         --profile "$profile" \
                         --region "$region" \
@@ -142,7 +143,7 @@ main() {
                         --output text 2>/dev/null || true)
                         
                     if [ -z "$sg_id" ] || [ "$sg_id" = "None" ] || [ "$sg_id" = "null" ]; then
-                        echo "Creating security group aictf-security-group..." >&2
+                        echo -e "${C_FLAG}Creating security group aictf-security-group...${C_RESET}" >&2
                         sg_id=$(aws ec2 create-security-group \
                             --profile "$profile" \
                             --region "$region" \
@@ -155,7 +156,7 @@ main() {
                     register_resource "security-group" "$sg_id" "aws" "$region" "Name: aictf-security-group"
                     
                     local my_ip=$(get_my_ip)
-                    echo "Whitelisting port 22 for your current IP: $my_ip" >&2
+                    echo -e "${C_FLAG}Whitelisting port 22 for your current IP: $my_ip${C_RESET}" >&2
                     aws ec2 authorize-security-group-ingress \
                         --profile "$profile" \
                         --region "$region" \
@@ -166,7 +167,7 @@ main() {
                         
                     local key_name="aictf-keypair"
                     if ! aws ec2 describe-key-pairs --profile "$profile" --region "$region" --key-names "$key_name" &>/dev/null; then
-                        echo "Importing public key to AWS EC2..." >&2
+                        echo -e "${C_FLAG}Importing public key to AWS EC2...${C_RESET}" >&2
                         aws ec2 import-key-pair \
                             --profile "$profile" \
                             --region "$region" \
@@ -285,7 +286,7 @@ ENV_EOF
 echo "=== AICFT BOOTSTRAP COMPLETE ==="
 EOF
                     local inst_type="t2.micro"
-                    echo "Launching EC2 instance ($inst_type)..." >&2
+                    echo -e "${C_FLAG}Launching EC2 instance ($inst_type)...${C_RESET}" >&2
                     local instance_id
                     instance_id=$(aws ec2 run-instances \
                         --profile "$profile" \
@@ -301,8 +302,8 @@ EOF
                         --output text)
                     rm -f "$user_data_file"
                     register_resource "instance" "$instance_id" "aws" "$region" "Type: ${inst_type}"
-                    echo "Successfully launched instance: $instance_id"
-                    echo "You can check status with: aictf list"
+                    echo -e "${C_FLAG}Success:${C_RESET} ${C_TEXT}Successfully launched instance:${C_RESET} ${C_SUBCOMMAND}$instance_id${C_RESET}"
+                    echo -e "${C_MUTED}You can check status with:${C_RESET} ${C_PRIMARY}aictf list${C_RESET}"
                     ;;
                 shell)
                     cmd_aws_shell "${1:-}"
