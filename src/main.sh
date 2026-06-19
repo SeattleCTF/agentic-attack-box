@@ -190,8 +190,10 @@ main() {
                     elif [ -f "${LLM_KEYS_DIR}/bedrock" ]; then
                         llm_env_setup=$(cat "${LLM_KEYS_DIR}/bedrock")
                     fi
+
+                    USER_HOME="/home/${target_user}"
                     
-                    cat <<EOF > "$user_data_file"
+                    cat << EOF > "$user_data_file"
 #!/bin/bash
 set -x
 exec > >(tee -a /var/log/aictf-bootstrap.log) 2>&1
@@ -223,11 +225,11 @@ mkdir -p "${USER_HOME}/.agents/skills/"
 # Penderrin2004 Edit
 if [ -d "$AICTF_CODE_DIR/skills" ]; then
     for skill_path in $AICTF_CODE_DIR/skills/*; do
-        if [ -d "$skill_path" ]; then
-            skill_name=$(basename "$skill_path")
-            mkdir -p "${USER_HOME}/.agents/skills/${skill_name}"
-            cat << 'SKILL_OUTER_EOF' > "${USER_HOME}/.agents/skills/${skill_name}/SKILL.md"
-$(cat "$skill_path/SKILL.md")
+        if [ -d "\$skill_path" ]; then
+            skill_name=$(basename "\$skill_path")
+            mkdir -p "${USER_HOME}/.agents/skills/\${skill_name}"
+            cat << SKILL_OUTER_EOF > "${USER_HOME}/.agents/skills/\${skill_name}/SKILL.md"
+cat "\$skill_path/SKILL.md"
 SKILL_OUTER_EOF
         fi
     done
@@ -235,6 +237,8 @@ else
     # Fallback default htb-web skill if skills dir is missing
     mkdir -p "${USER_HOME}/.agents/skills/htb-web/"
     cat << 'SKILL_EOF' > "${USER_HOME}/.agents/skills/htb-web/SKILL.md"
+EOF
+                    cat << 'SKILLED' >> "$user_data_file"
 # Skill: htb-web (HackTheBox Web Challenge Assistant)
 
 ## Description
@@ -271,6 +275,8 @@ Provide the step-by-step exploit payloads with a one-line description for why ea
 ## 5. Remediation
 Actionable advice on how developers should patch and secure this specific vulnerability.
 SKILL_EOF
+SKILLED
+                    cat << EOF2 >> "$user_data_file"
 fi
 
 chown -R ${target_user}:${target_user} "${USER_HOME}/.agents"
@@ -286,9 +292,9 @@ done << 'ENV_EOF'
 $llm_env_setup
 ENV_EOF
 echo "=== AICFT BOOTSTRAP COMPLETE ==="
-EOF
+EOF2
                     # Penderrin2004 Edit
-                    local inst_type="t2.small"
+                    local inst_type="t3.small"
                     echo -e "${C_FLAG}Launching EC2 instance ($inst_type)...${C_RESET}" >&2
                     local instance_id
                     instance_id=$(aws ec2 run-instances \
