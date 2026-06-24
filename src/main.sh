@@ -209,14 +209,14 @@ echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *
 apt-get update -y
 apt-get install -y gum crush || true
 USER_HOME="/home/${target_user}"
-mkdir -p "${USER_HOME}/.ssh"
-echo "$(cat ${SSH_KEYS_DIR}/aictf_key.pub)" >> "${USER_HOME}/.ssh/authorized_keys"
-chown -R ${target_user}:${target_user} "${USER_HOME}/.ssh"
-chmod 700 "${USER_HOME}/.ssh"
-chmod 600 "${USER_HOME}/.ssh/authorized_keys"
+mkdir -p "\${USER_HOME}/.ssh"
+echo "$(cat ${SSH_KEYS_DIR}/aictf_key.pub)" >> "\${USER_HOME}/.ssh/authorized_keys"
+chown -R ${target_user}:${target_user} "\${USER_HOME}/.ssh"
+chmod 700 "\${USER_HOME}/.ssh"
+chmod 600 "\${USER_HOME}/.ssh/authorized_keys"
 
 # Create Crush Agent Skill directory and write all local skills
-mkdir -p "${USER_HOME}/.agents/skills/"
+mkdir -p "\${USER_HOME}/.agents/skills/"
 
 # Inject all local skills from skills/ directory
 # Use a dynamic directory reader if skills exist, otherwise fallback
@@ -224,16 +224,16 @@ if [ -d "/home/remix/SeattleCTF/agentic-attack-box/skills" ]; then
     for skill_path in /home/remix/SeattleCTF/agentic-attack-box/skills/*; do
         if [ -d "$skill_path" ]; then
             skill_name=$(basename "$skill_path")
-            mkdir -p "${USER_HOME}/.agents/skills/${skill_name}"
-            cat << 'SKILL_OUTER_EOF' > "${USER_HOME}/.agents/skills/${skill_name}/SKILL.md"
+            mkdir -p "\${USER_HOME}/.agents/skills/${skill_name}"
+            cat << 'SKILL_OUTER_EOF' > "\${USER_HOME}/.agents/skills/${skill_name}/SKILL.md"
 $(cat "$skill_path/SKILL.md")
 SKILL_OUTER_EOF
         fi
     done
 else
     # Fallback default htb-web skill if skills dir is missing
-    mkdir -p "${USER_HOME}/.agents/skills/htb-web/"
-    cat << 'SKILL_EOF' > "${USER_HOME}/.agents/skills/htb-web/SKILL.md"
+    mkdir -p "\${USER_HOME}/.agents/skills/htb-web/"
+    cat << 'SKILL_EOF' > "\${USER_HOME}/.agents/skills/htb-web/SKILL.md"
 # Skill: htb-web (HackTheBox Web Challenge Assistant)
 
 ## Description
@@ -272,11 +272,11 @@ Actionable advice on how developers should patch and secure this specific vulner
 SKILL_EOF
 fi
 
-chown -R ${target_user}:${target_user} "${USER_HOME}/.agents"
+chown -R ${target_user}:${target_user} "\${USER_HOME}/.agents"
 
-echo "$llm_env_setup" >> "${USER_HOME}/.bashrc"
-echo "$llm_env_setup" >> "/home/${target_user}/.profile"
-chown ${target_user}:${target_user} "${USER_HOME}/.bashrc" "${USER_HOME}/.profile"
+echo "$llm_env_setup" >> "\${USER_HOME}/.bashrc"
+echo "$llm_env_setup" >> "\${USER_HOME}/.profile"
+chown ${target_user}:${target_user} "\${USER_HOME}/.bashrc" "\${USER_HOME}/.profile"
 while read -r line; do
     if [ -n "\$line" ]; then
         echo "\$line" >> /etc/environment
